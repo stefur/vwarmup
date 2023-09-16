@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "vwarmup"
+version = "0.1.0"
+description = "Listen to events from the car to manage smart charging feature of charging box."
+authors = ["stefur <stefan@furne.net>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+weconnect = "^0.58.0"
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^2.17.5"
+mypy = "^1.5.1"
+black = "^23.9.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
