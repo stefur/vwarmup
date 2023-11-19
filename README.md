@@ -1,0 +1,1 @@
+Toggle the smart charging depending climatization state. 

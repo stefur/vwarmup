@@ -6,15 +6,17 @@ authors = ["stefur <stefan@furne.net>"]
 license = "MIT"
 readme = "README.md"
 
+[tool.poetry.scripts]
+vwarmup = "vwarmup.main:main"
+
 [tool.poetry.dependencies]
 python = "^3.11"
-weconnect = "^0.58.0"
-
-[tool.poetry.group.dev.dependencies]
-pylint = "^2.17.5"
-mypy = "^1.5.1"
-black = "^23.9.1"
+weconnect = "^0.59.0"
+pyeasee = "^0.7.54"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+ignore_missing_imports = true
