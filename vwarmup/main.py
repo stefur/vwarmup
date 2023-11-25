@@ -23,7 +23,6 @@ async def weconnect_listener(args) -> None:
         addressable.AddressableLeaf.ObserverEvent.VALUE_CHANGED,
     )
     while True:
-        print("# Update")
         connection.update()
         await asyncio.sleep(300)
 
