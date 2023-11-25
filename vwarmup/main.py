@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 from weconnect import weconnect, addressable
+from weconnect.elements.timer import LOG
 from weconnect.elements.climatization_status import ClimatizationStatus
 from pyeasee import Easee
 
@@ -16,9 +17,6 @@ stream_handler.setFormatter(formatter)
 
 # Add the handler to the logger
 logger.addHandler(stream_handler)
-
-# Set the logging level
-logger.setLevel(logging.INFO)
 
 
 async def weconnect_listener(args) -> None:
@@ -60,9 +58,9 @@ def create_event_handler(args):
                     logger.info("> Climatization is off.")
                     asyncio.create_task(toggle_smart_charging(args))
                 case ClimatizationStatus.ClimatizationState.INVALID:
-                    logger.info("> Invalid climatization state.")
+                    logger.debug("> Invalid climatization state.")
                 case ClimatizationStatus.ClimatizationState.UNKNOWN:
-                    logger.info("> Unknown climatization state.")
+                    logger.debug("> Unknown climatization state.")
                 case _:
                     logger.info("> Climatization is on.")
                     asyncio.create_task(toggle_smart_charging(args))
@@ -72,9 +70,9 @@ def create_event_handler(args):
 
 async def toggle_smart_charging(args) -> None:
     """Toggle smart charging mode"""
-    logger.info("> Logging in to Easee.")
+    logger.debug("> Logging in to Easee.")
     easee = Easee(args.easeeusername, args.easeepassword)
-    logger.info("> Success!")
+    logger.debug("> Success!")
     sites = await easee.get_sites()
     home = sites[0]
     circuits = home.get_circuits()
@@ -82,6 +80,7 @@ async def toggle_smart_charging(args) -> None:
     chargers = the_circuit.get_chargers()
     the_charger = chargers[0]
     state = await the_charger.get_state()
+    logging.debug(f"> State of the charger: {state}")
     if state["smartCharging"] and state["chargerOpMode"] == "AWAITING_START":
         logger.info("> Turning off smart charging.")
         await the_charger.smart_charging(False)
@@ -89,8 +88,6 @@ async def toggle_smart_charging(args) -> None:
     elif state["smartCharging"] is False:
         logger.info("> Turning on smart charging.")
         await the_charger.smart_charging(True)
-    else:
-        logger.info("> Nothing to do.")
     await easee.close()
 
 
@@ -111,7 +108,30 @@ async def main():
     parser.add_argument(
         "-ep", "--easeepassword", help="Password of Easee account", required=True
     )
+    parser.add_argument(
+        "-tl",
+        "--timerlogs",
+        help="Suppress logging from timers",
+        default=True,
+        required=False,
+        type=bool,
+    )
+    parser.add_argument(
+        "-l",
+        "--loglevel",
+        help="Set the loglevel",
+        default="INFO",
+        required=False,
+        type=str,
+    )
     args = parser.parse_args()
+
+    # The weconnect library can be a bit noisy.
+    if args.timerlogs:
+        LOG.disabled = True
+
+    # Set the logging level
+    logger.setLevel(args.loglevel)
 
     await asyncio.gather(asyncio.create_task(weconnect_listener(args)))
 
