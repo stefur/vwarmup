@@ -5,6 +5,7 @@ from weconnect import weconnect, addressable
 from weconnect.elements.timer import LOG
 from weconnect.elements.climatization_status import ClimatizationStatus
 from pyeasee import Easee
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,12 @@ stream_handler.setFormatter(formatter)
 
 # Add the handler to the logger
 logger.addHandler(stream_handler)
+
+
+# Simplify enum of climatization
+class Mode(Enum):
+    OFF = 0
+    ON = 1
 
 
 async def weconnect_listener(args) -> None:
@@ -55,20 +62,27 @@ def create_event_handler(args):
         ):
             match element.value:
                 case ClimatizationStatus.ClimatizationState.OFF:
-                    logger.info("> Climatization is off.")
-                    asyncio.create_task(toggle_smart_charging(args))
-                case ClimatizationStatus.ClimatizationState.INVALID:
-                    logger.debug("> Invalid climatization state.")
-                case ClimatizationStatus.ClimatizationState.UNKNOWN:
-                    logger.debug("> Unknown climatization state.")
+                    logger.info("> Climatization is off. Turning on smart charging.")
+                    asyncio.create_task(toggle_smart_charging(args, Mode.OFF))
+                case state if state in [
+                    ClimatizationStatus.ClimatizationState.COOLING,
+                    ClimatizationStatus.ClimatizationState.HEATING,
+                    ClimatizationStatus.ClimatizationState.VENTILATION,
+                ]:
+                    logger.info("> Climatization is on. Turning off smart charging.")
+                    asyncio.create_task(toggle_smart_charging(args, Mode.ON))
+                case state if state in [
+                    ClimatizationStatus.ClimatizationState.INVALID,
+                    ClimatizationStatus.ClimatizationState.UNKNOWN,
+                ]:
+                    logger.debug("> Unknown or invalid climatization state.")
                 case _:
-                    logger.info("> Climatization is on.")
-                    asyncio.create_task(toggle_smart_charging(args))
+                    return
 
     return event_handler
 
 
-async def toggle_smart_charging(args) -> None:
+async def toggle_smart_charging(args, mode: Mode) -> None:
     """Toggle smart charging mode"""
     logger.debug("> Logging in to Easee.")
     easee = Easee(args.easeeusername, args.easeepassword)
@@ -81,12 +95,14 @@ async def toggle_smart_charging(args) -> None:
     the_charger = chargers[0]
     state = await the_charger.get_state()
     logging.debug(f"> State of the charger: {state}")
-    if state["smartCharging"] and state["chargerOpMode"] == "AWAITING_START":
-        logger.info("> Turning off smart charging.")
+    if (
+        state["smartCharging"]
+        and mode == Mode.ON
+        and state["chargerOpMode"] == "AWAITING_START"
+    ):
         await the_charger.smart_charging(False)
 
-    elif state["smartCharging"] is False:
-        logger.info("> Turning on smart charging.")
+    elif state["smartCharging"] is False and mode == Mode.OFF:
         await the_charger.smart_charging(True)
     await easee.close()
 
