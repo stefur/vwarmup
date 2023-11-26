@@ -19,6 +19,11 @@ stream_handler.setFormatter(formatter)
 # Add the handler to the logger
 logger.addHandler(stream_handler)
 
+# Attaching a handler to a logger and one or more of its ancestors,
+# it may emit the same record multiple times.
+# I don't want messages also going to the root handler.
+logger.propagate = False
+
 
 # Simplify enum of climatization
 class Mode(Enum):
@@ -28,16 +33,16 @@ class Mode(Enum):
 
 async def weconnect_listener(args) -> None:
     """Connect to WeConnect and listen to events"""
-    logger.info("> Initialize WeConnect")
+    logger.info("> Initialize WeConnect.")
     connection = weconnect.WeConnect(
         username=args.vwusername,
         password=args.vwpassword,
         updateAfterLogin=False,
         loginOnInit=False,
     )
-    logger.info("> Login to WeConnect")
+    logger.info("> Login to WeConnect.")
     connection.login()
-    logger.info("> Register for events")
+    logger.info("> Register for events.")
     event_handler = create_event_handler(args)
     connection.addObserver(
         event_handler,
@@ -62,14 +67,14 @@ def create_event_handler(args):
         ):
             match element.value:
                 case ClimatizationStatus.ClimatizationState.OFF:
-                    logger.info("> Climatization is off. Turning on smart charging.")
+                    logger.info("> Climatization is off.")
                     asyncio.create_task(toggle_smart_charging(args, Mode.OFF))
                 case state if state in [
                     ClimatizationStatus.ClimatizationState.COOLING,
                     ClimatizationStatus.ClimatizationState.HEATING,
                     ClimatizationStatus.ClimatizationState.VENTILATION,
                 ]:
-                    logger.info("> Climatization is on. Turning off smart charging.")
+                    logger.info("> Climatization is on.")
                     asyncio.create_task(toggle_smart_charging(args, Mode.ON))
                 case state if state in [
                     ClimatizationStatus.ClimatizationState.INVALID,
@@ -100,10 +105,15 @@ async def toggle_smart_charging(args, mode: Mode) -> None:
         and mode == Mode.ON
         and state["chargerOpMode"] == "AWAITING_START"
     ):
+        logger.info("> Turning off smart charging.")
         await the_charger.smart_charging(False)
 
     elif state["smartCharging"] is False and mode == Mode.OFF:
+        logger.info("> Turning on smart charging.")
         await the_charger.smart_charging(True)
+
+    else:
+        logger.info("> Smart charging enabled. Nothing to do.")
     await easee.close()
 
 
