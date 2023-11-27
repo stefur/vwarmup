@@ -99,7 +99,9 @@ async def toggle_smart_charging(args, mode: Mode) -> None:
     chargers = the_circuit.get_chargers()
     the_charger = chargers[0]
     state = await the_charger.get_state()
-    logging.debug(f"> State of the charger: {state}")
+    logger.debug(f"> Charger OpMode: {state["chargerOpMode"]}")
+    logger.debug(f"> Climatization mode: {mode}")
+    logger.debug(f"> Smart charging: {state["smartCharging"]}")
     if (
         state["smartCharging"]
         and mode == Mode.ON
@@ -113,7 +115,7 @@ async def toggle_smart_charging(args, mode: Mode) -> None:
         await the_charger.smart_charging(True)
 
     else:
-        logger.info("> Smart charging enabled. Nothing to do.")
+        logger.info("> Nothing to do.")
     await easee.close()
 
 
